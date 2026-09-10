@@ -28,7 +28,6 @@
 
 class CLASS_MODULE_I2C_MAPPER {
 public:
-    CLASS_MODULE_I2C_MAPPER(bool _in);
     void begin();
     void begin(ModContext& ctx);
     void web_Init();
@@ -44,8 +43,6 @@ private:
     uint8_t scanBus(uint8_t *found, uint8_t maxCount);   // скан шины, возвращает число найденных устройств
     friend void i2cMapperCmdScan();                      // терминальная команда i2c-scan (доступ к scanBus)
 
-protected:
-    bool dumb;
 };
 
 extern CLASS_MODULE_I2C_MAPPER module_i2c_mapper;
