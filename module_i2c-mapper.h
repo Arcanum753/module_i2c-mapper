@@ -18,13 +18,7 @@
 #include <LittleFS.h>
 #endif
 
-#if defined(ESP32)
-#define I2C_MAPPER_SDA  21
-#define I2C_MAPPER_SCL  22
-#elif defined(ESP8266)
-#define I2C_MAPPER_SDA  4
-#define I2C_MAPPER_SCL  5
-#endif
+#include "module_i2c-mapper_types.h"
 
 class CLASS_MODULE_I2C_MAPPER {
 public:
