@@ -14,7 +14,8 @@
 #if defined(ESP32)
 #include <LittleFS.h>
 #include <esp_task_wdt.h>
-#elif defined(ESP8266)
+#endif
+#if defined(ESP8266)
 #include <LittleFS.h>
 #endif
 
@@ -22,26 +23,42 @@
 
 class CLASS_MODULE_I2C_MAPPER {
 public:
+    CLASS_MODULE_I2C_MAPPER();
+
     void begin();
     void begin(ModContext& ctx);
     void web_Init();
+    void terminalRegister();
 
 private:
+    // Терминальные команды: статические методы-члены, поэтому имеют
+    // прямой доступ к приватному состоянию модуля (см. _terminal.cpp).
+    static void s_terminalCmd();
+    static void s_cmdShow();
+    static void s_cmdScan();
+    static void s_cmdPing();
+    static void s_cmdScanAlias();
+
+    // Версионные методы
     String getVersionStr();
     String getGeneratedTime();
     String getCommitDateStr();
     void html_ver_get(AsyncWebServerRequest *request);
 
+    // Веб-обработчики
     void handleScan(AsyncWebServerRequest *request);
 
-    uint8_t scanBus(uint8_t *found, uint8_t maxCount);   // скан шины, возвращает число найденных устройств
-    friend void i2cMapperCmdScan();                      // терминальная команда i2c-scan (доступ к scanBus)
+    // Логика шины
+    void busInit();
+    uint8_t scanBus();                                   // скан шины, результат — в кэш
+    bool probeBus(uint8_t addr);                         // проверка одного адреса (ACK)
 
+    bool _wireReady;
+    bool _scanDone;
+    uint8_t _lastCount;
+    uint8_t _lastAddrs[I2C_MAPPER_MAX_FOUND];
 };
 
 extern CLASS_MODULE_I2C_MAPPER module_i2c_mapper;
-
-// Терминальные команды модуля (регистрируются через TerminalRegisterModule)
-void i2cMapperTerminalRegister();
 
 #endif // _MODULE_I2C_MAPPER_h

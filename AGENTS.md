@@ -12,7 +12,7 @@ web и последовательную ASCII-карту.
 - **Registry:** `object=module_i2c_mapper`, `define=MODULE_I2C_MAPPER`, `web=1`, `loop=0` (без `namespace`/`res`/`prio`)
 - **Только для платформы:** обе (ESP8266/ESP32); env — `esp32-i2c-mapper`
 - **Зависит от модулей:** —
-- **Зависит от ядра:** `core_web`, `core_sys`, `core_terminal` (команда `i2c-scan`)
+- **Зависит от ядра:** `core_web`, `core_sys`, `core_terminal` (команда `i2c`)
 
 ## Назначение
 
@@ -24,7 +24,9 @@ web и последовательную карту.
 - FR-I2CMAP-1: `POST /i2cmapper/scan` возвращает JSON-массив найденных адресов вида `"0xNN"`.
 - FR-I2CMAP-2: Сканирование с кормлением `esp_task_wdt` (ESP32).
 - FR-I2CMAP-3: Выводы `I2C_MAPPER_SDA/SCL` (ESP32 21/22, ESP8266 4/5).
-- FR-I2CMAP-4: Терминальная команда `i2c-scan` печатает ASCII-карту шины.
+- FR-I2CMAP-4: Терминальная команда `i2c` — `show` (платформа, пины, состояние шины,
+  кэш последнего скана), `scan` (ASCII-карта + список адресов), `ping <addr>` (hex,
+  `0x01..0x7E`); старое имя `i2c-scan` — скрытый алиас `i2c scan`.
 
 ## Аппаратные интерфейсы
 
@@ -42,14 +44,44 @@ web и последовательную карту.
 
 ## Терминальные команды
 
-| Команда | Назначение | Доступность |
-|---------|-----------|-------------|
-| `i2c-scan` | сканер I2C (ASCII-карта шины) | только `MODULE_I2C_MAPPER` |
+Реализация — `module_i2c-mapper_terminal.cpp`; `terminalRegister()` вызывается из `begin()`.
+Компонент в дескрипторе — `module_i2c-mapper` (по нему `sys stat` ставит флаг `term`),
+команда верхнего уровня — `i2c`, `editable = false` (конфига у модуля нет). Справка —
+`i2c help`.
+
+| Подкоманда | Назначение |
+|---|---|
+| `i2c show` | платформа, SDA/SCL, состояние Wire, кэш последнего скана (без обращений к шине) |
+| `i2c scan` | скан `0x01..0x7E`, ASCII-карта и список найденных адресов; обновляет кэш |
+| `i2c ping <addr>` | проверка одного адреса (hex: `3C` или `0x3C`, диапазон `0x01..0x7E`) |
+| `i2c help` | справка |
+
+Правила:
+
+- адрес в `i2c ping` — **только hex**, `0x`-префикс опционален, ровно один аргумент;
+  невалидный адрес даёт usage-сообщение без обращения к шине;
+- кэш последнего скана обновляют и `i2c scan`, и web-эндпоинт `POST /i2cmapper/scan`;
+  `i2c show` кэш только читает;
+- `i2c`/`i2c scan` блокируют main-loop на время прохода по 126 адресам (~0.1–0.2 с),
+  watchdog кормится внутри `scanBus()`;
+- конфига нет, поэтому подкоманды `save` нет и `editable = false`;
+- старое имя `i2c-scan` — скрытый алиас на `i2c scan` (аргументов не принимает).
 
 ## Слоистая структура
 
-Из `../../LAYERS.md`: `module_i2c-mapper` — сканер шины I2C; сейчас пин-define'ы, `scanBus`;
-выделить `_types.h`, `_engine.cpp`.
+Из `../../LAYERS.md`: `module_i2c-mapper` — сканер шины I2C; деление на слои уже выполнено:
+define'ы и кэш — в `_types.h`/классе, работа с шиной — в `_engine.cpp`, команды — в
+`_terminal.cpp`.
+
+```
+module_i2c-mapper_types.h    — define'ы пинов, диапазона адресов и размера кэша
+module_i2c-mapper.h          — класс CLASS_MODULE_I2C_MAPPER, debug-макрос, extern
+module_i2c-mapper.cpp        — шаблонный блок (begin, web_Init, веб-обработчики, версии)
+module_i2c-mapper_engine.cpp — busInit, scanBus, probeBus
+module_i2c-mapper_terminal.cpp — терминальные команды i2c
+module_i2c-mapper.ini        — env-пример + секция [registry]
+web/                         — i2cmapper.html, _menu.html
+```
 
 ## Тестирование
 

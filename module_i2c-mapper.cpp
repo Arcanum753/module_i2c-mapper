@@ -3,13 +3,13 @@
 #include "module_i2c-mapper.h"
 #include "module_i2c-mapper_version.h"
 
-#include "core_terminal/core_terminal.h"
-#include "core_terminal/ErriezSerialTerminal.h"
-
-// Терминальная команда модуля (реализация — в module_i2c-mapper_engine.cpp)
-void i2cMapperCmdScan();
-
 CLASS_MODULE_I2C_MAPPER module_i2c_mapper;
+
+CLASS_MODULE_I2C_MAPPER::CLASS_MODULE_I2C_MAPPER() {
+    _wireReady = false;
+    _scanDone = false;
+    _lastCount = 0;
+}
 
 // ============================================================
 // begin()
@@ -17,7 +17,7 @@ CLASS_MODULE_I2C_MAPPER module_i2c_mapper;
 void CLASS_MODULE_I2C_MAPPER::begin() {
     DEBUGI2CMAPPER("%s\r\n", __FUNCTION__);
 
-    TerminalRegisterModule(i2cMapperTerminalRegister);
+    terminalRegister();
 }
 
 void CLASS_MODULE_I2C_MAPPER::begin(ModContext& ctx) {
@@ -47,8 +47,7 @@ void CLASS_MODULE_I2C_MAPPER::web_Init() {
 void CLASS_MODULE_I2C_MAPPER::handleScan(AsyncWebServerRequest *request) {
     DEBUGI2CMAPPER("%s\r\n", __FUNCTION__);
 
-    uint8_t found[126];
-    uint8_t count = scanBus(found, sizeof(found));
+    uint8_t count = scanBus();
 
     String result = "[";
     bool first = true;
@@ -56,7 +55,7 @@ void CLASS_MODULE_I2C_MAPPER::handleScan(AsyncWebServerRequest *request) {
         if (!first) { result += ","; }
         first = false;
         char buf[8];
-        snprintf(buf, sizeof(buf), "\"0x%02X\"", found[i]);
+        snprintf(buf, sizeof(buf), "\"0x%02X\"", _lastAddrs[i]);
         result += buf;
     }
     result += "]";
@@ -85,11 +84,4 @@ void CLASS_MODULE_I2C_MAPPER::html_ver_get(AsyncWebServerRequest *request) {
     values += "i2cmappergentime|" + getGeneratedTime() + "|div\n";
     values += "i2cmappergendate|" + getCommitDateStr() + "|div\n";
     request->send(200, "text/plain", values);
-}
-
-// ============================================================
-// Терминальные команды
-// ============================================================
-void i2cMapperTerminalRegister() {
-    term.addCommand("i2c-scan", i2cMapperCmdScan);
 }
